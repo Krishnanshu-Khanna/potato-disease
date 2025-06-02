@@ -3,7 +3,7 @@ import tensorflow as tf
 from PIL import Image
 import numpy as np
 import functions_framework  # Needed for GCP Functions
-from flask import jsonify, Request
+from flask import jsonify, Request, make_response
 
 model = None
 class_names = ["Early Blight", "Late Blight", "Healthy"]
@@ -18,17 +18,29 @@ def download_blob(bucket_name, source_blob_name, destination_file_name):
 
 @functions_framework.http
 def predict(request: Request):
+    # Handle preflight OPTIONS request for CORS
+    if request.method == 'OPTIONS':
+        response = make_response('', 204)
+        response.headers['Access-Control-Allow-Origin'] = 'https://potato-disease-one.vercel.app'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
     global model
     if model is None:
         download_blob(BUCKET_NAME, "models/potatoes.h5", "/tmp/potatoes.h5")
         model = tf.keras.models.load_model("/tmp/potatoes.h5")
 
     if 'file' not in request.files:
-        return jsonify({'error': 'No file part in the request'}), 400
+        response = jsonify({'error': 'No file part in the request'})
+        response.headers['Access-Control-Allow-Origin'] = 'https://potato-disease-one.vercel.app'
+        return response, 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
+        response = jsonify({'error': 'No file selected'})
+        response.headers['Access-Control-Allow-Origin'] = 'https://potato-disease-one.vercel.app'
+        return response, 400
 
     try:
         image = np.array(
@@ -41,10 +53,14 @@ def predict(request: Request):
         predicted_class = class_names[np.argmax(predictions[0])]
         confidence = round(100 * (np.max(predictions[0])), 2)
 
-        return jsonify({
+        response = jsonify({
             "class": predicted_class,
             "confidence": confidence
         })
+        response.headers['Access-Control-Allow-Origin'] = 'https://potato-disease-one.vercel.app'
+        return response
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        response = jsonify({"error": str(e)})
+        response.headers['Access-Control-Allow-Origin'] = 'https://potato-disease-one.vercel.app'
+        return response, 500

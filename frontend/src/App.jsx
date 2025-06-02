@@ -66,7 +66,7 @@ const ImageUpload = () => {
 				const res = await axios.post(import.meta.env.VITE_API_URL, formData);
 				if (res.status === 200) {
 					setData(res.data);
-					setConfidence((parseFloat(res.data.confidence) * 100).toFixed(2));
+					setConfidence((parseFloat(res.data.confidence)).toFixed(2));
 				}
 			} catch (error) {
 				console.error("Error uploading file:", error);
